@@ -1,4 +1,4 @@
-//#()&*
+//#()&*!
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,21 +17,27 @@ typedef union tint{
   int vint;
 } tint;
 
-int buildHeader();
+ull buildHeader(int nfield);
 theader_t* readHeader(int nfield);
 void insert(int nfield);
+void selectAll(int nfield, ull hEnd);
 
 int main(void){
   int nfield;
+  ull hEnd;
 
-  nfield = buildHeader();
+  printf("Insira o numero de campos\n");
+  scanf("%d", &nfield);//Le a quantidade de campos
+  hEnd = buildHeader(nfield);
   insert(nfield);
+  selectAll(nfield, hEnd);
   return 0;
 }
 
-int buildHeader(){ //Constrói o header do arquivo
-  int i, nfield, flen;
+ull buildHeader(int nfield){ //Constrói o header do arquivo
+  int i, flen;
   char fname[MAX], ftype;
+  ull ans;
   FILE *f;
 
   f = fopen("arquivo.dat", "w+"); //abre o arquivo e trata falhas
@@ -40,8 +46,6 @@ int buildHeader(){ //Constrói o header do arquivo
     exit(0);
   }
 
-  printf("Insira o numero de campos\n");
-  scanf("%d", &nfield);//Le a quantidade de campos
   for(i = 0; i < nfield; i++){ //Le e escreve nome, tipo e tamanho do atrib.
     printf("Insira o nome do atributo #%d\n", i+1);
     scanf("%s", fname);
@@ -56,8 +60,9 @@ int buildHeader(){ //Constrói o header do arquivo
   }
   strcpy(fname,"#"); //header encerrado com #
   fwrite(fname, 1, 1, f);
+  ans = ftell(f);
   fclose(f);
-  return nfield;
+  return ans;
 }
 
 theader_t* readHeader(int nfield){
@@ -80,7 +85,7 @@ theader_t* readHeader(int nfield){
   }
   fclose(f);
   return t;
-}
+} // Cria um vetor com os nomes e tipos de cada atributo
 
 void insert(int nfield){
   FILE *f;
@@ -127,4 +132,51 @@ void insert(int nfield){
     offs += sizeof(ull);
   }
   fclose(f);
-}
+} //Insere uma tupla
+
+void selectAll(int nfield, ull hEnd){
+  FILE *f;
+  theader_t *t;
+  char buf[MAX];
+  tint num;
+  ull off;
+  int i, j;
+
+  t = readHeader(nfield); //Le o header
+  f = fopen("arquivo.dat", "r"); // abre o arquivo
+  if(f == NULL){
+    printf("Arquivo não encontrado\n");
+    exit(0);
+  }
+  for(i = 0; i < nfield; i++){ // Imprime o nome de todos os atributos
+    printf("%s | ",t[i].name);
+  }
+  printf("\n");
+  //printf("%llu\n", hEnd);
+  while(!feof(f)){ // Enquanto o arquivo não terminar
+    for(i = 0; i < nfield; i++, hEnd += sizeof(ull)){
+      fseek(f, hEnd, SEEK_SET);
+      fread(&off, sizeof(ull), 1, f);
+      fseek(f, off, SEEK_SET);
+      switch(t[i].type){
+        case 'S':
+          for(j = 0; ftell(f) < off + sizeof(ull); j++)
+            fread(&buf[j], 1, 1, f);
+            //buf[j] = 0;
+          printf("%s", buf);
+          break;
+        case 'C':
+          fread(buf, 1, 1, f);
+          printf("%c", buf[0]);
+          break;
+        case 'I':
+          for(j = 0; ftell(f) < off + sizeof(ull); j++)
+            fread(num.cint, 1, 1, f);
+          printf("%d", num.vint);
+          break;
+      }
+      printf(" | ");
+    }
+    printf("\n");
+  }
+} //Imprime todas as tuplas
