@@ -4,7 +4,24 @@
 
 #define MAX 11234
 
-void buildHeader(){
+typedef struct theader{
+  char name[MAX];
+  char type;
+  int len;
+}theader_t;
+
+void buildHeader();
+void insert();
+
+int main(void){
+  int nfield;
+
+  nfield = buildHeader();
+  insert(nfield);
+  return 0;
+}
+
+int buildHeader(){
   int i, nfield, flen;
   char fname[MAX], ftype;
   FILE *f;
@@ -31,10 +48,22 @@ void buildHeader(){
   strcpy(fname,"#");
   fwrite(fname, 1, 1, f);
   fclose(f);
+  return nfield;
 }
 
-int main(void){
-  buildHeader();
+theader_t* readHeader(){
+  FILE *f;
+  theader_t *t = (theader_t*) malloc(sizeof(theader_t) * nfield);  
+}
 
-  return 0;
+void insert(int nfield){
+  FILE *f;
+  t = readHeader();
+  f = fopen("arquivo.dat","a+");
+  if(f == NULL){
+    printf("Arquivo não encontrado\n");
+    exit(0);
+  }
+
+
 }
