@@ -26,11 +26,12 @@ int main(void){
   int nfield;
   ull hEnd;
 
-  printf("Insira o numero de campos\n");
+  //printf("Insira o numero de campos\n");
   scanf("%d", &nfield);//Le a quantidade de campos
   hEnd = buildHeader(nfield);
-  insert(nfield);
+  insert(nfield); // Inserir um campo
   selectAll(nfield, hEnd);
+  printf("%llu", hEnd);
   return 0;
 }
 
@@ -47,10 +48,10 @@ ull buildHeader(int nfield){ //Constrói o header do arquivo
   }
 
   for(i = 0; i < nfield; i++){ //Le e escreve nome, tipo e tamanho do atrib.
-    printf("Insira o nome do atributo #%d\n", i+1);
+    //printf("Insira o nome do atributo #%d\n", i+1);
     scanf("%s", fname);
     getchar();
-    printf("Insira o tipo do atributo #%d\n", i+1);
+    //printf("Insira o tipo do atributo #%d\n", i+1);
     scanf("%c", &ftype);
     getchar();
     flen = strlen(fname);
@@ -58,9 +59,7 @@ ull buildHeader(int nfield){ //Constrói o header do arquivo
     fwrite(&flen,sizeof(int),1,f);
     fwrite(fname, flen, 1, f);
   }
-  strcpy(fname,"#"); //header encerrado com #
-  fwrite(fname, 1, 1, f);
-  ans = ftell(f);
+  ans = ftell(f); // Esse ftell ta certo.
   fclose(f);
   return ans;
 }
@@ -89,47 +88,60 @@ theader_t* readHeader(int nfield){
 
 void insert(int nfield){
   FILE *f;
-  ull* offsets;
-  ull offs, data;
-  offsets = (ull*)malloc(sizeof(ull) * nfield);
+  ull offs, offs2, data;
   theader_t* t = readHeader(nfield);
-  int i, num;
-  char buf[MAX], c;
+  int i, aux, count, s;
+  char buf[nfield][MAX], c, aux2;
 
   f = fopen("arquivo.dat","a+");
   if(f == NULL){
     printf("Arquivo não encontrado\n");
     exit(0);
   }
-  offs = ftell(f);
-  data = offs + nfield * sizeof(ull);
-  fwrite(&offs, sizeof(ull), nfield, f);
-  for(i = 0; i < nfield; i++){
-    fseek(f, offs, SEEK_SET);
+
+  fseek(f, 0, SEEK_END); // Comeca no fim do cabecalho
+  offs2 = offs = ftell(f); //Offset inicial dos offsets
+  data = offs + nfield * sizeof(ull); // offset inicias dos dados
+  for(i = 0; i < nfield; i++){ // salva todos os offsets dos offsets primeiro e armazena a data em algum lugar
+    fseek(f, offs, SEEK_SET); // va para onde eu quero escrever o proximo offstet
     fwrite(&data, sizeof(ull), 1, f);
-    fseek(f, data, SEEK_SET);
-    printf("\n%s :",t[i].name);
     switch(t[i].type){
       case 'S':
-        fgets(buf, MAX,stdin);
-        buf[strlen(buf)-1] = 0;
-        fwrite(buf, strlen(buf), 1, f);
-        data += strlen(buf);
-        break;
+      for(s=0;(aux2=getchar())!='\n'; s++){
+        buf[i][s]=aux2;
+      }
+      buf[i][s+1]='\0';
+      data += strlen(buf[i]);
+      break;
       case 'C':
-        scanf("%c", &buf[0]);
-        while((c = getchar()) != '\n' && c != EOF);
-        fwrite(buf, 1, 1, f);
-        data++;
-        break;
+      scanf("%c", &buf[i][0]);
+      while((c = getchar()) != '\n' && c != EOF); // garbage collector
+      data++;
+      break;
       case 'I':
-        scanf("%d", &num);
-        while((c = getchar()) != '\n' && c != EOF);
-        fwrite (&num, sizeof(int), 1, f);
-        data += sizeof(int);
-        break;
+      scanf("%d", &aux);
+      while((c = getchar()) != '\n' && c != EOF); // garbage collector
+      data += sizeof(int);
+      break;
     }
     offs += sizeof(ull);
+  }
+  for(i = 0; i < nfield; i++){
+    fseek(f, offs2, SEEK_SET);
+    fread(&data, sizeof(ull), 1, f);
+    fseek(f, data, SEEK_SET);
+    switch(t[i].type){
+      case 'S':
+      fwrite(buf[i], strlen(buf[i]), 1, f);
+      break;
+      case 'C':
+      fwrite(&buf[i][0], 1, 1, f);
+      break;
+      case 'I':
+      fwrite (&aux, sizeof(int), 1, f);
+      break;
+    }
+    offs2 += sizeof(ull);
   }
   fclose(f);
 } //Insere uma tupla
@@ -139,9 +151,9 @@ void selectAll(int nfield, ull hEnd){
   theader_t *t;
   char buf[MAX];
   tint num;
-  ull off;
+  ull off, aux, aux2, comparator;
   int i, j;
-
+  bool flag=0;
   t = readHeader(nfield); //Le o header
   f = fopen("arquivo.dat", "r"); // abre o arquivo
   if(f == NULL){
@@ -152,28 +164,34 @@ void selectAll(int nfield, ull hEnd){
     printf("%s | ",t[i].name);
   }
   printf("\n");
-  //printf("%llu\n", hEnd);
-  while(!feof(f)){ // Enquanto o arquivo não terminar
+  fseek(f, 0, SEEK_END);
+  aux = ftell(f);
+  while(flag==0){ // Enquanto o arquivo não terminar
     for(i = 0; i < nfield; i++, hEnd += sizeof(ull)){
       fseek(f, hEnd, SEEK_SET);
       fread(&off, sizeof(ull), 1, f);
+      fseek(f, hEnd+sizeof(ull), SEEK_SET);
+      fread(&aux2, sizeof(ull), 1, f);
+      if(aux2 < aux) comparator = aux2;
+      else{
+        comparator = aux;
+        flag = 1;
+      }
       fseek(f, off, SEEK_SET);
       switch(t[i].type){
         case 'S':
-          for(j = 0; ftell(f) < off + sizeof(ull); j++)
-            fread(&buf[j], 1, 1, f);
-            //buf[j] = 0;
-          printf("%s", buf);
-          break;
+        for(j = 0; ftell(f) < comparator; j++) fread(&buf[j], 1, 1, f);
+        buf[j] = '\0';
+        printf("%s", buf);
+        break;
         case 'C':
-          fread(buf, 1, 1, f);
-          printf("%c", buf[0]);
-          break;
+        fread(&buf[0], 1, 1, f);
+        printf("%c", buf[0]);
+        break;
         case 'I':
-          for(j = 0; ftell(f) < off + sizeof(ull); j++)
-            fread(num.cint, 1, 1, f);
-          printf("%d", num.vint);
-          break;
+        for(j = 0; ftell(f) < comparator; j++) fread(&num.cint[j], 1, 1, f);
+        printf("%d", num.vint);
+        break;
       }
       printf(" | ");
     }
