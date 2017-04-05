@@ -30,7 +30,8 @@ int main(void){
   scanf("%d", &nfield);//Le a quantidade de campos
   hEnd = buildHeader(nfield);
   insert(nfield); // Inserir um campo
-  //selectAll(nfield, hEnd);
+  selectAll(nfield, hEnd);
+  printf("%llu", hEnd);
   return 0;
 }
 
@@ -89,7 +90,7 @@ void insert(int nfield){
   FILE *f;
   ull offs, offs2, data;
   theader_t* t = readHeader(nfield);
-  int i, aux[MAX], count, s;
+  int i, aux, count, s;
   char buf[nfield][MAX], c, aux2;
 
   f = fopen("arquivo.dat","a+");
@@ -110,11 +111,6 @@ void insert(int nfield){
         buf[i][s]=aux2;
       }
       buf[i][s+1]='\0';
-      // for(int r = 0; r < nfield; r++){
-      //   for(int s=0;s < strlen(buf[i]); s++) printf("%c ", buf[r][s]);
-      //   printf("\n");
-      // }
-      printf("O que eu li foi %s e escrevi em %llu\n", buf[i], data);
       data += strlen(buf[i]);
       break;
       case 'C':
@@ -123,7 +119,7 @@ void insert(int nfield){
       data++;
       break;
       case 'I':
-      scanf("%d", &aux[i]);
+      scanf("%d", &aux);
       while((c = getchar()) != '\n' && c != EOF); // garbage collector
       data += sizeof(int);
       break;
@@ -136,15 +132,13 @@ void insert(int nfield){
     fseek(f, data, SEEK_SET);
     switch(t[i].type){
       case 'S':
-      printf("to escrvendo na bagaca %s\n", buf[i]);
-      fwrite(&buf[i], sizeof(buf[i]), 1, f);
-      //fwrite(buf[i], strlen(buf[i]), 1, f);
+      fwrite(buf[i], strlen(buf[i]), 1, f);
       break;
       case 'C':
-      fwrite(buf[i], 1, 1, f);
+      fwrite(&buf[i][0], 1, 1, f);
       break;
       case 'I':
-      fwrite (&aux[i], sizeof(int), 1, f);
+      fwrite (&aux, sizeof(int), 1, f);
       break;
     }
     offs2 += sizeof(ull);
@@ -170,7 +164,6 @@ void selectAll(int nfield, ull hEnd){
     printf("%s | ",t[i].name);
   }
   printf("\n");
-  //printf("%llu\n", hEnd);
   fseek(f, 0, SEEK_END);
   aux = ftell(f);
   while(flag==0){ // Enquanto o arquivo não terminar
@@ -187,17 +180,16 @@ void selectAll(int nfield, ull hEnd){
       fseek(f, off, SEEK_SET);
       switch(t[i].type){
         case 'S':
-        for(j = 0; ftell(f) < comparator; j++)
-        fread(&buf[j], 1, 1, f);
-        //buf[j] = 0;
+        for(j = 0; ftell(f) < comparator; j++) fread(&buf[j], 1, 1, f);
+        buf[j] = '\0';
         printf("%s", buf);
         break;
         case 'C':
-        fread(buf, 1, 1, f);
+        fread(&buf[0], 1, 1, f);
         printf("%c", buf[0]);
         break;
         case 'I':
-        for(j = 0; ftell(f) < comparator; j++) fread(num.cint, 1, 1, f);
+        for(j = 0; ftell(f) < comparator; j++) fread(&num.cint[j], 1, 1, f);
         printf("%d", num.vint);
         break;
       }
