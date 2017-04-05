@@ -1,4 +1,3 @@
-//#()&*!
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +6,7 @@
 
 typedef unsigned long long ull;
 
-typedef struct theader{
+typedef struct theader{ //Struct utilizada para ler o header
   char name[MAX];
   char type;
 }theader_t;
@@ -26,12 +25,13 @@ int main(void){
   int nfield;
   ull hEnd;
 
-  //printf("Insira o numero de campos\n");
+  printf("Insira o numero de campos\n");
   scanf("%d", &nfield);//Le a quantidade de campos
   hEnd = buildHeader(nfield);
   insert(nfield); // Inserir um campo
+  insert(nfield);
   selectAll(nfield, hEnd);
-  printf("%llu", hEnd);
+  // printf("%llu", hEnd);
   return 0;
 }
 
@@ -47,11 +47,12 @@ ull buildHeader(int nfield){ //Constrói o header do arquivo
     exit(0);
   }
 
-  for(i = 0; i < nfield; i++){ //Le e escreve nome, tipo e tamanho do atrib.
-    //printf("Insira o nome do atributo #%d\n", i+1);
+   //Le e escreve tipo, tamanho e nome de cada atrib. no arquivo
+  for(i = 0; i < nfield; i++){
+    printf("Insira o nome do atributo #%d\n", i+1);
     scanf("%s", fname);
     getchar();
-    //printf("Insira o tipo do atributo #%d\n", i+1);
+    printf("Insira o tipo do atributo #%d\n", i+1);
     scanf("%c", &ftype);
     getchar();
     flen = strlen(fname);
@@ -59,23 +60,24 @@ ull buildHeader(int nfield){ //Constrói o header do arquivo
     fwrite(&flen,sizeof(int),1,f);
     fwrite(fname, flen, 1, f);
   }
-  ans = ftell(f); // Esse ftell ta certo.
+  //salva e retorna o final do header
+  ans = ftell(f);
   fclose(f);
   return ans;
 }
 
-theader_t* readHeader(int nfield){
+theader_t* readHeader(int nfield){ //Le o Header num vetor de theaders
   FILE *f;
   theader_t *t = (theader_t*) malloc(sizeof(theader_t) * nfield);
   int i, tmp;
   char ftype;
 
-  f = fopen("arquivo.dat", "r");
+  f = fopen("arquivo.dat", "r"); //abre o arquivo e testa por erros
   if(f == NULL){
     printf("Arquivo não encontrado\n");
     exit(0);
   }
-  for(i = 0; i < nfield; i++){
+  for(i = 0; i < nfield; i++){ //Le o tipo, tamanho e nome dos atrib.
     fread(&ftype, 1, 1, f);
     if(ftype == '#') break;
     t[i].type = ftype;
@@ -84,53 +86,56 @@ theader_t* readHeader(int nfield){
   }
   fclose(f);
   return t;
-} // Cria um vetor com os nomes e tipos de cada atributo
+}
 
-void insert(int nfield){
+void insert(int nfield){ //Insere uma tupla no arquivo
   FILE *f;
   ull offs, offs2, data;
   theader_t* t = readHeader(nfield);
-  int i, aux, count, s;
+  int i, aux, s;
   char buf[nfield][MAX], c, aux2;
 
-  f = fopen("arquivo.dat","a+");
+  f = fopen("arquivo.dat","a+");//Abre o arquivo e testa por erros
   if(f == NULL){
     printf("Arquivo não encontrado\n");
     exit(0);
   }
+  fseek(f, 0, SEEK_END-1);
+  fread(&c, 1, 1, f);
+  if(c != '$') fseek(f, 0, SEEK_END);
+  else fseek(f, 0, SEEK_END-1);
 
-  fseek(f, 0, SEEK_END); // Comeca no fim do cabecalho
-  offs2 = offs = ftell(f); //Offset inicial dos offsets
-  data = offs + nfield * sizeof(ull); // offset inicias dos dados
-  for(i = 0; i < nfield; i++){ // salva todos os offsets dos offsets primeiro e armazena a data em algum lugar
-    fseek(f, offs, SEEK_SET); // va para onde eu quero escrever o proximo offstet
-    fwrite(&data, sizeof(ull), 1, f);
-    switch(t[i].type){
-      case 'S':
-      for(s=0;(aux2=getchar())!='\n'; s++){
-        buf[i][s]=aux2;
-      }
-      buf[i][s+1]='\0';
-      data += strlen(buf[i]);
-      break;
-      case 'C':
-      scanf("%c", &buf[i][0]);
-      while((c = getchar()) != '\n' && c != EOF); // garbage collector
-      data++;
-      break;
-      case 'I':
-      scanf("%d", &aux);
-      while((c = getchar()) != '\n' && c != EOF); // garbage collector
-      data += sizeof(int);
-      break;
-    }
-    offs += sizeof(ull);
-  }
+  offs2 = offs = ftell(f); //offset inicial dos offsets
+  data = offs + nfield * sizeof(ull); //offset inicial dos dados
+  // salva todos os offsets dos dados primeiro e armazena a data no buffer
   for(i = 0; i < nfield; i++){
-    fseek(f, offs2, SEEK_SET);
-    fread(&data, sizeof(ull), 1, f);
-    fseek(f, data, SEEK_SET);
-    switch(t[i].type){
+    fseek(f, offs, SEEK_SET); // va para onde eu quero escrever o proximo offstet
+    fwrite(&data, sizeof(ull), 1, f);//Escreve o proximo offset
+    printf("\n%s:",t[i].name);
+    switch(t[i].type){//Le o atributo em questao e o escreve no arquivo
+      case 'S':
+        for(s=0;(aux2=getchar())!='\n'; s++) buf[i][s]=aux2;
+        buf[i][s+1]='\0';
+        data += strlen(buf[i]);
+        break;
+      case 'C':
+        scanf("%c", &buf[i][0]);
+        while((c = getchar()) != '\n' && c != EOF); // garbage collector
+        data++;
+        break;
+      case 'I':
+        scanf("%d", &aux);
+        while((c = getchar()) != '\n' && c != EOF); // garbage collector
+        data += sizeof(int);
+        break;
+    }
+    offs += sizeof(ull);//vai para o offset do proximo offset a ser lido
+  }
+  for(i = 0; i < nfield; i++){ //Escreve os dados do buffer no arquivo
+    fseek(f, offs2, SEEK_SET); //Coloca o buffer de leitura no offset a ser lido
+    fread(&data, sizeof(ull), 1, f);//Le o offset atual
+    fseek(f, data, SEEK_SET); //Coloca o buffer no local de escrita atual
+    switch(t[i].type){ //Escreve o dado no arquivo
       case 'S':
       fwrite(buf[i], strlen(buf[i]), 1, f);
       break;
@@ -143,13 +148,17 @@ void insert(int nfield){
     }
     offs2 += sizeof(ull);
   }
+  c = '#'; //Caractere especial no fim da linha
+  fwrite(&c, 1, 1, f);
+  c = '$'; //Caractere especial no fim do arquivo
+  fwrite(&c, 1, 1, f);
   fclose(f);
-} //Insere uma tupla
+}
 
 void selectAll(int nfield, ull hEnd){
   FILE *f;
   theader_t *t;
-  char buf[MAX];
+  char buf[MAX], c = 'a';
   tint num;
   ull off, aux, aux2, comparator;
   int i, j;
@@ -164,18 +173,21 @@ void selectAll(int nfield, ull hEnd){
     printf("%s | ",t[i].name);
   }
   printf("\n");
-  fseek(f, 0, SEEK_END);
-  aux = ftell(f);
-  while(flag==0){ // Enquanto o arquivo não terminar
-    for(i = 0; i < nfield; i++, hEnd += sizeof(ull)){
-      fseek(f, hEnd, SEEK_SET);
+  // fseek(f, 0, SEEK_END);
+  // aux = ftell(f);
+  while(c != '$'){ // Enquanto o arquivo não terminar
+    for(i = 0, c = 'a'; i < nfield; i++, hEnd += sizeof(ull)){
+      fseek(f, hEnd, SEEK_SET); //Le o proximo offset
       fread(&off, sizeof(ull), 1, f);
-      fseek(f, hEnd+sizeof(ull), SEEK_SET);
-      fread(&aux2, sizeof(ull), 1, f);
-      if(aux2 < aux) comparator = aux2;
+      if(i == nfield - 1){
+        fseek(f, off, SEEK_SET);
+        while(c != '#') fread(&c, 1, 1, f);
+        comparator = ftell(f) - 1;
+      }
       else{
-        comparator = aux;
-        flag = 1;
+        fseek(f, hEnd+sizeof(ull), SEEK_SET);
+        fread(&aux2, sizeof(ull), 1, f);
+        comparator = aux2;
       }
       fseek(f, off, SEEK_SET);
       switch(t[i].type){
@@ -196,5 +208,7 @@ void selectAll(int nfield, ull hEnd){
       printf(" | ");
     }
     printf("\n");
+    fread(&c, 1, 1, f);
+    fread(&c, 1, 1, f);
   }
 } //Imprime todas as tuplas
