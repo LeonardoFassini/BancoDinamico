@@ -1,3 +1,9 @@
+/* UNIVERSIDADE FEDERAL DA FRONTEIRA SUL;
+DEPARTAMENTO DE CIENCIA DA COMPUTAÇÃO - CAMPUS CHAPECO;
+CÓDIGO MIRACULOSAMENTE DESENVOLVIDO POR FELIPE CHABATURA E LEONARDO TIRONI;
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,14 +30,31 @@ void selectAll(int nfield, ull hEnd);
 int main(void){
   int nfield;
   ull hEnd;
-
+  bool leave=0;
+  char FUNCIONOU_CARAI;
+  printf("== CREATE TABLE ==\n");
   printf("Insira o numero de campos\n");
   scanf("%d", &nfield);//Le a quantidade de campos
   hEnd = buildHeader(nfield);
-  insert(nfield); // Inserir um campo
-  insert(nfield);
-  selectAll(nfield, hEnd);
-  // printf("%llu", hEnd);
+  while(leave==0){
+    // printf("O QUE DESEJA?\n");
+    // printf("[I]nserir Dado\n");
+    // printf("I[m]primir Tudo\n");
+    // printf("[S]air\n");
+    FUNCIONOU_CARAI=getchar();
+    getchar();
+    switch(FUNCIONOU_CARAI){
+      case 'I':
+      insert(nfield); // Inserir um campo
+      break;
+      case 'm':
+      selectAll(nfield, hEnd);
+      break;
+      case 'S':
+      leave = 1;
+      break;
+    }
+  }
   return 0;
 }
 
@@ -95,15 +118,16 @@ void insert(int nfield){ //Insere uma tupla no arquivo
   int i, aux, s;
   char buf[nfield][MAX], c, aux2;
 
-  f = fopen("arquivo.dat","a+");//Abre o arquivo e testa por erros
+  f = fopen("arquivo.dat","r+");//Abre o arquivo e testa por erros
   if(f == NULL){
     printf("Arquivo não encontrado\n");
     exit(0);
   }
-  fseek(f, 0, SEEK_END-1);
+  fseek(f, 0, SEEK_END);
+  ull o = ftell(f)-1;
   fread(&c, 1, 1, f);
-  if(c != '$') fseek(f, 0, SEEK_END);
-  else fseek(f, 0, SEEK_END-1);
+  if(c != '$') fseek(f, o+1, SEEK_SET);
+  else fseek(f, o, SEEK_SET);
 
   offs2 = offs = ftell(f); //offset inicial dos offsets
   data = offs + nfield * sizeof(ull); //offset inicial dos dados
@@ -115,7 +139,7 @@ void insert(int nfield){ //Insere uma tupla no arquivo
     switch(t[i].type){//Le o atributo em questao e o escreve no arquivo
       case 'S':
         for(s=0;(aux2=getchar())!='\n'; s++) buf[i][s]=aux2;
-        buf[i][s+1]='\0';
+        buf[i][s]='\0';
         data += strlen(buf[i]);
         break;
       case 'C':
@@ -209,6 +233,8 @@ void selectAll(int nfield, ull hEnd){
     }
     printf("\n");
     fread(&c, 1, 1, f);
+    ull n = ftell(f);
     fread(&c, 1, 1, f);
+    if(c != '$') hEnd=n;
   }
 } //Imprime todas as tuplas
